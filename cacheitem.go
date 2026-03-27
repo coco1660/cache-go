@@ -27,6 +27,7 @@ type CacheItem struct {
 	// Creation timestamp.
 	createdOn time.Time
 	// Last access timestamp.
+	// 最后一次被访问的时间
 	accessedOn time.Time
 	// How often the item was accessed.
 	accessCount int64
@@ -57,7 +58,7 @@ func NewCacheItem(key interface{}, lifeSpan time.Duration, data interface{}) *Ca
 func (item *CacheItem) KeepAlive() {
 	item.Lock()
 	defer item.Unlock()
-	item.accessedOn = time.Now()
+	item.accessedOn = time.Now() // 更新上次访问时间
 	item.accessCount++
 }
 

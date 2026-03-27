@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
+	// 获取myCache缓存表，不存在就创建
 	cache := cache2go.Cache("myCache")
 
 	// This callback will be triggered every time a new item

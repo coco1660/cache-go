@@ -21,6 +21,7 @@ type CacheTable struct {
 	// The table's name.
 	name string
 	// All cached items.
+	// item是key到整个key-value的映射
 	items map[interface{}]*CacheItem
 
 	// Timer responsible for triggering cleanup.
@@ -34,7 +35,7 @@ type CacheTable struct {
 	// Callback method triggered when trying to load a non-existing key.
 	loadData func(key interface{}, args ...interface{}) *CacheItem
 	// Callback method triggered when adding a new item to the cache.
-	addedItem []func(item *CacheItem)
+	addedItem []func(item *CacheItem) // 函数数组，记录所有添加的回调函数
 	// Callback method triggered before deleting an item from the cache.
 	aboutToDeleteItem []func(item *CacheItem)
 }
@@ -69,15 +70,18 @@ func (table *CacheTable) SetDataLoader(f func(interface{}, ...interface{}) *Cach
 // a new item is added to the cache.
 func (table *CacheTable) SetAddedItemCallback(f func(*CacheItem)) {
 	if len(table.addedItem) > 0 {
+		// 因为是set，第一次添加回调，如果存在删除现有的
 		table.RemoveAddedItemCallbacks()
 	}
+	// 需要写入，加写锁
 	table.Lock()
 	defer table.Unlock()
 	table.addedItem = append(table.addedItem, f)
 }
 
-//AddAddedItemCallback appends a new callback to the addedItem queue
+// AddAddedItemCallback appends a new callback to the addedItem queue
 func (table *CacheTable) AddAddedItemCallback(f func(*CacheItem)) {
+	// 需要写入，加写锁
 	table.Lock()
 	defer table.Unlock()
 	table.addedItem = append(table.addedItem, f)
@@ -125,6 +129,7 @@ func (table *CacheTable) SetLogger(logger *log.Logger) {
 // Expiration check loop, triggered by a self-adjusting timer.
 func (table *CacheTable) expirationCheck() {
 	table.Lock()
+	// 取消现有的定时器
 	if table.cleanupTimer != nil {
 		table.cleanupTimer.Stop()
 	}
@@ -138,21 +143,24 @@ func (table *CacheTable) expirationCheck() {
 	// loop iteration. Not sure it's really efficient though.
 	now := time.Now()
 	smallestDuration := 0 * time.Second
+	// 遍历每一项？？？？？？？
 	for key, item := range table.items {
 		// Cache values so we don't keep blocking the mutex.
 		item.RLock()
-		lifeSpan := item.lifeSpan
-		accessedOn := item.accessedOn
+		lifeSpan := item.lifeSpan     // ttl
+		accessedOn := item.accessedOn // 最后一次被访问时间
 		item.RUnlock()
-
+		// 不过期的key跳过
 		if lifeSpan == 0 {
 			continue
 		}
 		if now.Sub(accessedOn) >= lifeSpan {
+			// 当前时间距离上一次访问时间已经超过ttl，key过期移除
 			// Item has excessed its lifespan.
 			table.deleteInternal(key)
 		} else {
 			// Find the item chronologically closest to its end-of-lifespan.
+			// 找到最早过期的key
 			if smallestDuration == 0 || lifeSpan-now.Sub(accessedOn) < smallestDuration {
 				smallestDuration = lifeSpan - now.Sub(accessedOn)
 			}
@@ -160,8 +168,10 @@ func (table *CacheTable) expirationCheck() {
 	}
 
 	// Setup the interval for the next cleanup run.
+	// 更新下一次检查过期的时间
 	table.cleanupInterval = smallestDuration
 	if smallestDuration > 0 {
+		// 创建计时器，只需要给最早过期的key设置计时器，不需要每个key一个计时器
 		table.cleanupTimer = time.AfterFunc(smallestDuration, func() {
 			go table.expirationCheck()
 		})
@@ -181,12 +191,16 @@ func (table *CacheTable) addInternal(item *CacheItem) {
 	table.Unlock()
 
 	// Trigger callback after adding an item to cache.
+	// 执行add操作的回调
 	if addedItem != nil {
 		for _, callback := range addedItem {
 			callback(item)
 		}
 	}
-
+	// 加入新的key，可能更早的过期，有必要重新调度过期检查
+	// item.lifeSpan > 0 表示加入的key存在TTL
+	// expDur表示下一次过期检查还有多久，动态设置，实际上表示的是最早过期的key还有多久
+	// expDur == 0 || item.lifeSpan < expDur 说明当前加入的key需要更早的过期检查进行清理
 	// If we haven't set up any expiration check timer or found a more imminent item.
 	if item.lifeSpan > 0 && (expDur == 0 || item.lifeSpan < expDur) {
 		table.expirationCheck()
@@ -209,6 +223,7 @@ func (table *CacheTable) Add(key interface{}, lifeSpan time.Duration, data inter
 }
 
 func (table *CacheTable) deleteInternal(key interface{}) (*CacheItem, error) {
+	// 已经对table加了写锁
 	r, ok := table.items[key]
 	if !ok {
 		return nil, ErrKeyNotFound
@@ -216,24 +231,32 @@ func (table *CacheTable) deleteInternal(key interface{}) (*CacheItem, error) {
 
 	// Cache value so we don't keep blocking the mutex.
 	aboutToDeleteItem := table.aboutToDeleteItem
-	table.Unlock()
+	table.Unlock() // 防止死锁，降低锁粒度，提高并发
 
 	// Trigger callbacks before deleting an item from cache.
 	if aboutToDeleteItem != nil {
+		// 执行删除操作的回调函数
 		for _, callback := range aboutToDeleteItem {
 			callback(r)
 		}
 	}
-
-	r.RLock()
+	r.RLock() // item的锁粒度比较小
 	defer r.RUnlock()
 	if r.aboutToExpire != nil {
+		// 绑定到item的回调
 		for _, callback := range r.aboutToExpire {
 			callback(key)
 		}
 	}
 
 	table.Lock()
+	// 加锁后再次判断下item是否要更新
+	rCheck, ok := table.items[key]
+	if !ok || r != rCheck {
+		// 期间访问或更新了key
+		table.log("cancel delete item with key", key)
+		return r, nil
+	}
 	table.log("Deleting item with key", key, "created on", r.createdOn, "and hit", r.accessCount, "times from table", table.name)
 	delete(table.items, key)
 
@@ -279,8 +302,9 @@ func (table *CacheTable) NotFoundAdd(key interface{}, lifeSpan time.Duration, da
 // pass additional arguments to your DataLoader callback function.
 func (table *CacheTable) Value(key interface{}, args ...interface{}) (*CacheItem, error) {
 	table.RLock()
+	// 只是获取值，加读锁
 	r, ok := table.items[key]
-	loadData := table.loadData
+	loadData := table.loadData // 读操作key不存在时的回调
 	table.RUnlock()
 
 	if ok {
@@ -291,7 +315,7 @@ func (table *CacheTable) Value(key interface{}, args ...interface{}) (*CacheItem
 
 	// Item doesn't exist in cache. Try and fetch it with a data-loader.
 	if loadData != nil {
-		item := loadData(key, args...)
+		item := loadData(key, args...) // 可以在回调中创建item
 		if item != nil {
 			table.Add(key, item.lifeSpan, item.data)
 			return item, nil

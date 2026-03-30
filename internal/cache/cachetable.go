@@ -5,9 +5,10 @@
  *   For license see LICENSE.txt
  */
 
-package cache2go
+package cache
 
 import (
+	"github.com/coco1660/cache2go"
 	"log"
 	"sort"
 	"sync"
@@ -226,7 +227,7 @@ func (table *CacheTable) deleteInternal(key interface{}) (*CacheItem, error) {
 	// 已经对table加了写锁
 	r, ok := table.items[key]
 	if !ok {
-		return nil, ErrKeyNotFound
+		return nil, cache2go.ErrKeyNotFound
 	}
 
 	// Cache value so we don't keep blocking the mutex.
@@ -321,10 +322,10 @@ func (table *CacheTable) Value(key interface{}, args ...interface{}) (*CacheItem
 			return item, nil
 		}
 
-		return nil, ErrKeyNotFoundOrLoadable
+		return nil, cache2go.ErrKeyNotFoundOrLoadable
 	}
 
-	return nil, ErrKeyNotFound
+	return nil, cache2go.ErrKeyNotFound
 }
 
 // Flush deletes all items from this cache table.

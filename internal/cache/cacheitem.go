@@ -5,15 +5,13 @@
  *   For license see LICENSE.txt
  */
 
-package cache2go
+package cache
 
 import (
 	"sync"
 	"time"
 )
 
-// CacheItem is an individual cache item
-// Parameter data contains the user-set value in the cache.
 type CacheItem struct {
 	sync.RWMutex
 

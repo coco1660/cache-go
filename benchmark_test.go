@@ -8,6 +8,7 @@
 package cache2go
 
 import (
+	"github.com/coco1660/cache2go/internal/cache"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -15,7 +16,7 @@ import (
 )
 
 func BenchmarkNotFoundAdd(b *testing.B) {
-	table := Cache("testNotFoundAdd")
+	table := cache.Cache("testNotFoundAdd")
 
 	var finish sync.WaitGroup
 	var added int32

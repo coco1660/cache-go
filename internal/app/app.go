@@ -51,9 +51,10 @@ func Run(cfg *config.Config) {
 
 	select {
 	case s := <-interrupt:
+		cache.CacheSave(mysql, l)
 		l.Info("app - Run - signal: " + s.String())
 	case err = <-httpServer.Notify():
-		cache.CacheSave(mysql)
+		cache.CacheSave(mysql, l)
 		l.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
 		//case err = <-grpcServer.Notify():
 		//	l.Error(fmt.Errorf("app - Run - grpcServer.Notify: %w", err))

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/coco1660/cache2go/internal/cache/repo"
 	"github.com/coco1660/cache2go/internal/entity"
+	"github.com/coco1660/cache2go/pkg/logger"
 	"github.com/coco1660/cache2go/pkg/mysql"
 	"sync"
 	"time"
@@ -52,7 +53,8 @@ func CacheLoad(mysql *mysql.Mysql) error {
 	return nil
 }
 
-func CacheSave(mysql *mysql.Mysql) error {
+func CacheSave(mysql *mysql.Mysql, l *logger.Logger) error {
+	l.Error(fmt.Errorf("cache save"))
 	cacheRepo := repo.New(mysql)
 	data := make(map[string]*entity.CacheItems)
 	caches := []*entity.Tables{}
@@ -62,17 +64,24 @@ func CacheSave(mysql *mysql.Mysql) error {
 	cacheId, err := cacheRepo.SaveCache(caches)
 
 	for k, v := range cache {
-		data[k] = &entity.CacheItems{
-			TableID:     cacheId[k],
-			Key:         v.items[k].key.(string),
-			Value:       v.items[k].data.(string),
-			ExpireAt:    v.items[k].accessedOn.Add(v.items[k].lifeSpan),
-			CreateTime:  v.items[k].createdOn,
-			UpdateTime:  v.items[k].accessedOn,
-			AccessCount: v.items[k].accessCount,
+		l.Error(fmt.Errorf("k: %s", k))
+		l.Error(fmt.Errorf("v: %v", v))
+		l.Error(fmt.Errorf("v: %v", v.items))
+		items := v.items
+		for key, value := range items {
+			data[key.(string)] = &entity.CacheItems{
+				TableID:     cacheId[k],
+				Key:         key.(string),
+				Value:       value.data.(string),
+				ExpireAt:    value.accessedOn.Add(v.items[k].lifeSpan),
+				CreateTime:  value.createdOn,
+				UpdateTime:  value.accessedOn,
+				AccessCount: value.accessCount,
+			}
 		}
+		err = cacheRepo.SaveItems(data)
 	}
-	err = cacheRepo.SaveItems(data)
+	l.Error(fmt.Errorf("cache save finished"))
 	return err
 }
 

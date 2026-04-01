@@ -30,7 +30,8 @@ func GetKey(c *gin.Context) {
 		errorResponse(c, http.StatusBadRequest, "GetKey fail")
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	// 直接写item，由于成员未导出，终端不会显示返回的数据
+	c.JSON(http.StatusOK, item.Data())
 }
 
 func SetKey(c *gin.Context) {

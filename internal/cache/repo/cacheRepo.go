@@ -24,14 +24,15 @@ func (r *CacheRepo) Load() (map[string][]entity.CacheItems, error) {
 		cacheTable = make(map[string][]entity.CacheItems)
 		tx         = r.Engine
 	)
-	if _, err = tx.Get(&tables); err != nil {
+	// tx.Get操作是只查找一条记录，find是查找所有数据
+	if err = tx.Find(&tables); err != nil {
 		return nil, fmt.Errorf("Load - GetTables - Fail : %w", err)
 	}
 	for _, cache := range tables {
 		idName[cache.Id] = cache.Name
 		cacheTable[cache.Name] = []entity.CacheItems{}
 	}
-	if _, err = tx.Get(&items); err != nil {
+	if err = tx.Find(&items); err != nil {
 		return nil, fmt.Errorf("Load - GetItems - Fail : %w", err)
 	}
 	for _, item := range items {

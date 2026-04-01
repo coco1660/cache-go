@@ -9,6 +9,7 @@ package cache
 
 import (
 	"github.com/coco1660/cache2go"
+	"github.com/coco1660/cache2go/internal/entity"
 	"log"
 	"sort"
 	"sync"
@@ -39,6 +40,22 @@ type CacheTable struct {
 	addedItem []func(item *CacheItem) // 函数数组，记录所有添加的回调函数
 	// Callback method triggered before deleting an item from the cache.
 	aboutToDeleteItem []func(item *CacheItem)
+}
+
+func (table *CacheTable) Values() []*entity.CacheItems {
+	res := []*entity.CacheItems{}
+	for k, v := range table.items {
+		item := &entity.CacheItems{
+			Key:         k.(string),
+			Value:       v.data.(string),
+			ExpireAt:    v.accessedOn.Add(v.lifeSpan),
+			CreateTime:  v.createdOn,
+			UpdateTime:  v.accessedOn,
+			AccessCount: v.accessCount,
+		}
+		res = append(res, item)
+	}
+	return res
 }
 
 // Count returns how many items are currently stored in the cache.

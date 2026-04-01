@@ -31,7 +31,11 @@ func CacheLoad(mysql *mysql.Mysql) error {
 		return fmt.Errorf("load failed: %w", err)
 	}
 	for n, _ := range load {
-		cache[n] = &CacheTable{}
+		// 注意：创建结构体指针是，内部的map需要单独make，否则直接使用会panic
+		cache[n] = &CacheTable{
+			name:  n,
+			items: make(map[interface{}]*CacheItem),
+		}
 	}
 	now := time.Now()
 	for n, i := range load {
@@ -64,20 +68,14 @@ func CacheSave(mysql *mysql.Mysql, l *logger.Logger) error {
 	cacheId, err := cacheRepo.SaveCache(caches)
 
 	for k, v := range cache {
-		l.Error(fmt.Errorf("k: %s", k))
-		l.Error(fmt.Errorf("v: %v", v))
-		l.Error(fmt.Errorf("v: %v", v.items))
-		items := v.items
-		for key, value := range items {
-			data[key.(string)] = &entity.CacheItems{
-				TableID:     cacheId[k],
-				Key:         key.(string),
-				Value:       value.data.(string),
-				ExpireAt:    value.accessedOn.Add(v.items[k].lifeSpan),
-				CreateTime:  value.createdOn,
-				UpdateTime:  value.accessedOn,
-				AccessCount: value.accessCount,
-			}
+		// 调用CacheTable提供的方法，在内部访问未导出成员
+		// 如果需要在外部访问未导出成员，可以额外提供get,set方法
+		values := v.Values()
+		for _, item := range values {
+			// 循环遍历
+			d := *item
+			d.TableID = cacheId[k]
+			data[item.Key] = &d
 		}
 		err = cacheRepo.SaveItems(data)
 	}

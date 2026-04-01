@@ -90,7 +90,7 @@ func DeleteKey(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, item)
+	c.JSON(http.StatusOK, item.Key())
 }
 
 func Exists(c *gin.Context) {

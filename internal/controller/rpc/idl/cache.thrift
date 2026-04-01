@@ -24,9 +24,10 @@ struct NewCacheResponse {
 }
 
 struct SetRequest {
-    1: required string key
-    2: required string value
-    3: optional i64 life_span
+    1: required string cache
+    2: required string key
+    3: required string value
+    4: optional i64 life_span
 }
 
 struct SetResponse {
@@ -39,7 +40,7 @@ struct GetRequest {
 }
 
 struct GetResponse {
-    1: optional CacheItem item
+    1: required string value
     2: BaseResp base
 }
 

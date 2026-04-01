@@ -196,9 +196,10 @@ var fieldIDToName_NewCacheResponse_ = map[int16]string{
 }
 
 type SetRequest struct {
-	Key      string `thrift:"key,1,required" frugal:"1,required,string" json:"key"`
-	Value    string `thrift:"value,2,required" frugal:"2,required,string" json:"value"`
-	LifeSpan *int64 `thrift:"life_span,3,optional" frugal:"3,optional,i64" json:"life_span,omitempty"`
+	Cache    string `thrift:"cache,1,required" frugal:"1,required,string" json:"cache"`
+	Key      string `thrift:"key,2,required" frugal:"2,required,string" json:"key"`
+	Value    string `thrift:"value,3,required" frugal:"3,required,string" json:"value"`
+	LifeSpan *int64 `thrift:"life_span,4,optional" frugal:"4,optional,i64" json:"life_span,omitempty"`
 }
 
 func NewSetRequest() *SetRequest {
@@ -206,6 +207,10 @@ func NewSetRequest() *SetRequest {
 }
 
 func (p *SetRequest) InitDefault() {
+}
+
+func (p *SetRequest) GetCache() (v string) {
+	return p.Cache
 }
 
 func (p *SetRequest) GetKey() (v string) {
@@ -223,6 +228,9 @@ func (p *SetRequest) GetLifeSpan() (v int64) {
 		return SetRequest_LifeSpan_DEFAULT
 	}
 	return *p.LifeSpan
+}
+func (p *SetRequest) SetCache(val string) {
+	p.Cache = val
 }
 func (p *SetRequest) SetKey(val string) {
 	p.Key = val
@@ -246,9 +254,10 @@ func (p *SetRequest) String() string {
 }
 
 var fieldIDToName_SetRequest = map[int16]string{
-	1: "key",
-	2: "value",
-	3: "life_span",
+	1: "cache",
+	2: "key",
+	3: "value",
+	4: "life_span",
 }
 
 type SetResponse struct {
@@ -328,8 +337,8 @@ var fieldIDToName_GetRequest = map[int16]string{
 }
 
 type GetResponse struct {
-	Item *CacheItem `thrift:"item,1,optional" frugal:"1,optional,CacheItem" json:"item,omitempty"`
-	Base *BaseResp  `thrift:"base,2" frugal:"2,default,BaseResp" json:"base"`
+	Value string    `thrift:"value,1,required" frugal:"1,required,string" json:"value"`
+	Base  *BaseResp `thrift:"base,2" frugal:"2,default,BaseResp" json:"base"`
 }
 
 func NewGetResponse() *GetResponse {
@@ -339,13 +348,8 @@ func NewGetResponse() *GetResponse {
 func (p *GetResponse) InitDefault() {
 }
 
-var GetResponse_Item_DEFAULT *CacheItem
-
-func (p *GetResponse) GetItem() (v *CacheItem) {
-	if !p.IsSetItem() {
-		return GetResponse_Item_DEFAULT
-	}
-	return p.Item
+func (p *GetResponse) GetValue() (v string) {
+	return p.Value
 }
 
 var GetResponse_Base_DEFAULT *BaseResp
@@ -356,15 +360,11 @@ func (p *GetResponse) GetBase() (v *BaseResp) {
 	}
 	return p.Base
 }
-func (p *GetResponse) SetItem(val *CacheItem) {
-	p.Item = val
+func (p *GetResponse) SetValue(val string) {
+	p.Value = val
 }
 func (p *GetResponse) SetBase(val *BaseResp) {
 	p.Base = val
-}
-
-func (p *GetResponse) IsSetItem() bool {
-	return p.Item != nil
 }
 
 func (p *GetResponse) IsSetBase() bool {
@@ -379,7 +379,7 @@ func (p *GetResponse) String() string {
 }
 
 var fieldIDToName_GetResponse = map[int16]string{
-	1: "item",
+	1: "value",
 	2: "base",
 }
 

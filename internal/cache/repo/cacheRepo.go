@@ -41,6 +41,7 @@ func (r *CacheRepo) Load() (map[string][]entity.CacheItems, error) {
 	}
 	return cacheTable, nil
 }
+
 func (r *CacheRepo) SaveCache(caches []*entity.Tables) (map[string]int64, error) {
 	var (
 		err     error
@@ -63,6 +64,7 @@ func (r *CacheRepo) SaveCache(caches []*entity.Tables) (map[string]int64, error)
 	}
 	return cacheId, nil
 }
+
 func (r *CacheRepo) SaveItems(cache map[string]*entity.CacheItems) error {
 	var (
 		err error
